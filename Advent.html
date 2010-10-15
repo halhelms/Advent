@@ -1,0 +1,149 @@
+<html>
+	<head>
+		<script 
+	  	type="text/javascript"
+	  	src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>	
+	</head>
+	
+	<body>
+		<div id="main"></div>
+	</body>
+</html>
+
+<script type="text/javascript">
+
+	var Advent = function() {
+// private variables
+		var _subscribers = {};
+		
+// private functions
+	function processResponse( response ){
+		if ( response.success ){
+			// am I supposed to display something on the page?
+			if ( response.display ) {
+				response.display_protocol = response.display_protocol ? response.display_protocol : 'html' ;
+				$( response.display_context )[response.display_protocol ]( response.display );
+			};
+			// notify any subscribers
+			Advent.notify( response.event_name, response.data );
+		};
+	};
+		
+// initialization
+
+// public API	
+		return {
+		
+			help : function( subject ){
+				subject = subject ? subject.toLowerCase() : 'general';
+				
+				switch ( subject ){
+					case 'general' : 
+						return "Advent is a JavaScript framework for working with eventful web applications. \n" +						
+						"Advent API: \n" +	
+						"notify( eventName, eventObject ) \n" + 
+						"subscribe( eventName, subscriber ) \n" + 
+						"get( url, data ) \n" + 
+						"post( url, data ) \n" + 
+						"help() \n\n"+
+						"Get and Post expect a JSON string with the following keys:\n" +  
+						"success: (boolean : required) true if the server was able to complete its work; else false \n" +
+						"event_name: (string : required) the name of the event just completed by the server. This event will be announced by Advent.\n" + 
+						"display (HTML fragment : optional) an HTML fragment that you wish displayed in display_context \n"+
+						"display_context: (string : optional) a CSS style selector which should hold any display being provided by the server\n" + 
+						"display_protocol: (string : optional [default is 'HTML'] how display will be placed into display_context. Possible types: HTML, append, prepend \n" +
+						"data : (optional) a data structure of your choice to be used by subscribers to event_name" 
+					case 'notify' :
+						return "Info about notify";
+					case 'subscribe' :
+						return "Info about subscribe";
+					case 'get' :
+						return "Info about get";
+					case 'post' : 
+						return "Info about post";
+				};
+			},
+		
+			notify : function( eventName, eventObject ){
+
+				// var stripped_event_name = eventName.toLowerCase().replace(/[^\w\xC0-\xFF]/g, '');
+				if ( !_subscribers[ eventName ] ){ return };
+ 				// reverse the loop because we may pop items off of the array, changing the size of the array
+ 				for ( var i = _subscribers[ eventName ].length-1; i >= 0; i-- ){
+					try{
+						_subscribers[ eventName ][ i ][ eventName ]( eventName, eventObject );
+					} catch( e ){
+						console.log( e );
+						// garbage collect
+						_subscribers[ eventName ].splice( i, 1 );
+					};
+				}
+			},
+			
+			subscribe : function( eventName, listener ){
+				if ( !_subscribers[ eventName ] ){
+					_subscribers[ eventName ] = [];
+				};
+				_subscribers[ eventName ].push( listener );
+			},
+			
+			get : function( url, data ) {
+				$.get( 
+					url,
+					data,
+					processResponse( response ),
+					'json'
+				 );
+			},
+			
+			post : function( url, data ) {
+				$.post(
+					url,
+					data,
+					function( response ) {
+						processResponse( response );
+					},
+					'json'
+				);
+			}
+			
+		}	// end public API
+	
+	}();
+	
+	
+		var subscriber1 = function(){
+		var self = this;
+		(function(){
+			Advent.subscribe( 'customer_added', self );
+		})();
+		
+		return {
+			customer_added : function(eventName, eventObject){
+				$('#main').html(eventObject.name);
+				alert(eventObject.name);
+			}
+		}
+	}();
+	
+	var subscriber2 = function(){
+		return {
+			customer_added : function(eventName, eventObject){
+				console.log( eventObject.religion);
+			}
+		}
+	}();
+	
+	var subscriber3 = function(){
+		return {
+			customer_added : function(eventName, eventObject){
+				console.log( eventName + ' from subscriber3');
+			}
+		}
+	}();	
+
+	
+	console.log(Advent.help());
+	Advent.post('Customer.cfc', { 'method' : 'create', 'customer_name' : 'Hal' } );
+	</script>
+
